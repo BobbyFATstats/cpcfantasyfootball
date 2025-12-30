@@ -319,9 +319,20 @@ fig.update_layout(
     legend_title_text="Owner(s)"
 )
 
-# Quadrant lines
-fig.add_vline(x=pf_avg, line_dash="dash")
-fig.add_hline(y=pa_avg, line_dash="dash")
+# Quadrant lines (make them WHITE so they pop on dark theme)
+fig.add_vline(
+    x=pf_avg,
+    line_dash="dash",
+    line_color="rgba(255,255,255,0.8)",
+    line_width=2
+)
+
+fig.add_hline(
+    y=pa_avg,
+    line_dash="dash",
+    line_color="rgba(255,255,255,0.8)"
+    line_width=2
+)
 
 st.plotly_chart(fig, use_container_width=True)
 
