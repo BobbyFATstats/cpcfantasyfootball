@@ -211,6 +211,40 @@ with st.expander("🐐 How is the GOAT Score calculated?"):
 This isn’t science — it’s **fantasy football propaganda** 😈
 """)
 
+with st.expander("🏰 How is the Dynasty Index calculated?"):
+    st.markdown("""
+**The Dynasty Index is a “who built a real empire?” score.**  
+It rewards **rings first**, but also gives credit for **modern-era consistency and scoring dominance** (2014+).
+
+**Formula:**
+
+🏆 **Championship Points** (all-time)  
+➕ **Modern Win %** × 100  
+➕ **Modern Total PF** ÷ 500  
+
+---
+
+### What each part means
+- 🏆 **Championship Points:**  
+  - 2008–2013 titles = **25** points each  
+  - 2014+ titles = **50** points each  
+  (Rings are forever — even the ancient ones.)
+
+- 📈 **Modern Win % × 100 (2014+):**  
+  Rewards owners who win consistently *in the tracked era*.
+
+- 🏈 **Modern PF ÷ 500 (2014+):**  
+  Adds a scoring “dominance” boost so it’s not only about record luck.
+
+---
+
+### Why we like it
+- It’s a **dynasty** score, not a single-season flex
+- It respects the early era (titles count), but doesn’t pretend we have PF data back then
+- It’s still **trash-talk friendly** 😈
+""")
+
+
 agg = agg.sort_values(by=["Championships", "Win %", "Total_Wins"], ascending=[False, False, False])
 
 # -----------------------------
@@ -223,7 +257,8 @@ st.dataframe(
         "Owner(s)",
         "Seasons_Played",
         "Championships",
-        "Championship Points",
+        "Dynasty Index",
+        "GOAT Score",
         "Championship Years",
         "Total_Wins",
         "Total_Losses",
@@ -232,9 +267,7 @@ st.dataframe(
         "Total_PA",
         "Point Diff",
         "Total_Transactions",
-        "PF per Transaction",
-        "Dynasty Index",
-        "GOAT Score"
+        "PF per Transaction"
     ]],
     use_container_width=True
 )
