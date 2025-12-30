@@ -221,6 +221,7 @@ st.subheader("🏆 All-Time Leaderboard (Champs all-time, stats from 2014+)")
 st.dataframe(
     agg[[
         "Owner(s)",
+        "Seasons_Played",
         "Championships",
         "Championship Points",
         "Championship Years",
@@ -239,6 +240,14 @@ st.dataframe(
 )
 
 # -----------------------------
+# Eligibility filter for "career awards" (GOAT + Mr. Consistency)
+# -----------------------------
+QUAL_SEASONS = 7
+qualified = agg[agg["Seasons_Played"] >= QUAL_SEASONS].copy()
+qualified_names = set(qualified["Owner(s)"])
+
+
+# -----------------------------
 # League Superlatives (MODERN-only logic for stats)
 # -----------------------------
 st.subheader("🔥 League Superlatives (2014+ stats only)")
@@ -246,8 +255,11 @@ st.subheader("🔥 League Superlatives (2014+ stats only)")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    goat = agg.sort_values(["GOAT Score", "Championships"], ascending=[False, False]).iloc[0]
-    st.metric("👑 GOAT", goat["Owner(s)"], f"{int(goat['Championships'])} Rings")
+    if not qualified.empty:
+        goat = qualified.sort_values(["GOAT Score", "Championships"], ascending=[False, False]).iloc[0]
+        st.metric("👑 GOAT (7+ seasons)", goat["Owner(s)"], f"{int(goat['Championships'])} Rings")
+    else:
+        st.metric("👑 GOAT (7+ seasons)", "No one qualifies yet", "—")
 
 with col2:
     most_tx = agg.sort_values("Total_Transactions", ascending=False).iloc[0]
@@ -273,7 +285,12 @@ with col4:
         st.metric("📉 Luckiest Champion", "No modern champ PF data", "—")
 
 with col5:
-    season_team = work_modern.dropna(subset=["Season_Year"]).copy()
+    season_team = (
+        work_modern[work_modern["Owner(s)"].isin(qualified_names)]
+        .dropna(subset=["Season_Year"])
+        .copy()
+    )
+
     season_team["Season Win %"] = (
         season_team["Wins"] / (season_team["Wins"] + season_team["Losses"]).replace(0, pd.NA)
     ).fillna(0)
@@ -283,12 +300,25 @@ with col5:
         .agg(["count", "std"])
         .reset_index()
     )
-    stds = stds[stds["count"] >= 2].copy()
+    stds = stds[stds["count"] >= QUAL_SEASONS].copy()
+
     if not stds.empty:
         mr_consistency = stds.sort_values("std", ascending=True).iloc[0]
-        st.metric("🧱 Mr. Consistency", mr_consistency["Owner(s)"], f"σ={mr_consistency['std']:.3f}")
+        st.metric(
+            "🧱 Mr. Consistency (7+ seasons)",
+            mr_consistency["Owner(s)"],
+            f"σ={mr_consistency['std']:.3f}",
+            help=(
+                "Measures how steady an owner's season-to-season performance is.\n\n"
+                "We compute each owner's Win% for every season since 2014, then take the "
+                "standard deviation (σ) of those season Win% values.\n\n"
+                "Lower σ = more consistent year-to-year.\n"
+                "Only owners with 7+ seasons since 2014 are eligible."
+            )
+        )
     else:
-        st.metric("🧱 Mr. Consistency", "Need 2+ modern seasons", "—")
+        st.metric("🧱 Mr. Consistency (7+ seasons)", "No one qualifies yet", "—")
+
 
 with col6:
     best_season = work_modern.sort_values("PF", ascending=False)
@@ -375,7 +405,7 @@ with cB:
     st.markdown("**Good & Unlucky**")
     st.write(", ".join(good_unlucky["Owner(s)"].head(8).tolist()) or "—")
 with cC:
-    st.markdown("**Fraud Alert 🤡**")
+    st.markdown("**Sneaky Wins 🕵️‍♂️**")
     st.write(", ".join(fraud_alert["Owner(s)"].head(8).tolist()) or "—")
 with cD:
     st.markdown("**Bad & Doomed 💀**")
