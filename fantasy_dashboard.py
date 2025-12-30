@@ -330,7 +330,7 @@ fig.add_vline(
 fig.add_hline(
     y=pa_avg,
     line_dash="dash",
-    line_color="rgba(255,255,255,0.8)"
+    line_color="rgba(255,255,255,0.8)",
     line_width=2
 )
 
