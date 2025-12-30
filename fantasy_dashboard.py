@@ -161,6 +161,21 @@ stats_agg = (
 
 agg = champs_agg.merge(stats_agg, on="Owner(s)", how="left")
 
+# Seasons played since 2014 (for normalization)
+seasons_played = (
+    work_modern.groupby("Owner(s)")["Season_Year"]
+    .nunique()
+    .reset_index(name="Seasons_Played")
+)
+
+agg = agg.merge(seasons_played, on="Owner(s)", how="left")
+agg["Seasons_Played"] = agg["Seasons_Played"].fillna(0)
+
+# Per-season averages (used for fair quadrants)
+agg["Avg PF / Season"] = (agg["Total_PF"] / agg["Seasons_Played"].clip(lower=1)).round(1)
+agg["Avg PA / Season"] = (agg["Total_PA"] / agg["Seasons_Played"].clip(lower=1)).round(1)
+
+
 for c in ["Total_Wins", "Total_Losses", "Total_PF", "Total_PA", "Total_Transactions"]:
     agg[c] = agg[c].fillna(0)
 
@@ -284,64 +299,73 @@ with col6:
     else:
         st.metric("🔥 Best Single Season Ever", "No modern PF data", "—")
 
+quad_df = agg[agg["Seasons_Played"] > 0][[
+    "Owner(s)",
+    "Avg PF / Season",
+    "Avg PA / Season",
+    "Seasons_Played",
+    "Championships",
+    "GOAT Score"
+]].copy()
+
+
 # -----------------------------
 # Visuals (NO Win % line chart)
 # -----------------------------
 st.subheader("📊 Trends & Visuals (2014+ only)")
+st.markdown("### ⚖️ PF vs PA (Per-Season Averages since 2014) — Quadrants of Truth 😈")
 
-st.markdown("### ⚖️ PF vs PA (All-Time since 2014) — Quadrants of Truth 😈")
-
-pf_avg = agg["Total_PF"].mean()
-pa_avg = agg["Total_PA"].mean()
-
-quad_df = agg[["Owner(s)", "Total_PF", "Total_PA", "Championships", "GOAT Score"]].copy()
+# Use the per-season averages for the quadrant lines (FAIR across tenure)
+pf_avg = quad_df["Avg PF / Season"].mean()
+pa_avg = quad_df["Avg PA / Season"].mean()
 
 # Plotly interactive scatter: different color per owner, hover tooltip
 fig = px.scatter(
     quad_df,
-    x="Total_PF",
-    y="Total_PA",
+    x="Avg PF / Season",
+    y="Avg PA / Season",
     color="Owner(s)",
+    size="Seasons_Played",
     hover_name="Owner(s)",
     hover_data={
-        "Total_PF": ":.1f",
-        "Total_PA": ":.1f",
+        "Avg PF / Season": ":.1f",
+        "Avg PA / Season": ":.1f",
+        "Seasons_Played": True,
         "Championships": True,
         "GOAT Score": True,
         "Owner(s)": False
     },
-    title="PF vs PA (2014+) — hover for receipts"
+    title="Avg PF vs Avg PA per Season (2014+) — hover for receipts"
 )
 
-# Make chart bigger + readable
 fig.update_layout(
-    height=650,
+    height=700,
     legend_title_text="Owner(s)"
 )
 
-# Quadrant lines (make them WHITE so they pop on dark theme)
+# Quadrant lines (visible on dark theme)
 fig.add_vline(
     x=pf_avg,
     line_dash="dash",
-    line_color="rgba(255,255,255,0.8)",
+    line_color="rgba(255,255,255,0.85)",
     line_width=2
 )
-
 fig.add_hline(
     y=pa_avg,
     line_dash="dash",
-    line_color="rgba(255,255,255,0.8)",
+    line_color="rgba(255,255,255,0.85)",
     line_width=2
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-st.caption(f"League averages since 2014 — PF: {pf_avg:.1f} | PA: {pa_avg:.1f}")
+st.caption(f"League averages since 2014 — Avg PF/Season: {pf_avg:.1f} | Avg PA/Season: {pa_avg:.1f}")
 
-dominant = quad_df[(quad_df["Total_PF"] >= pf_avg) & (quad_df["Total_PA"] < pa_avg)]
-good_unlucky = quad_df[(quad_df["Total_PF"] >= pf_avg) & (quad_df["Total_PA"] >= pa_avg)]
-fraud_alert = quad_df[(quad_df["Total_PF"] < pf_avg) & (quad_df["Total_PA"] < pa_avg)]
-bad_doomed = quad_df[(quad_df["Total_PF"] < pf_avg) & (quad_df["Total_PA"] >= pa_avg)]
+# Quadrant lists MUST use the same averaged columns
+dominant = quad_df[(quad_df["Avg PF / Season"] >= pf_avg) & (quad_df["Avg PA / Season"] < pa_avg)]
+good_unlucky = quad_df[(quad_df["Avg PF / Season"] >= pf_avg) & (quad_df["Avg PA / Season"] >= pa_avg)]
+fraud_alert = quad_df[(quad_df["Avg PF / Season"] < pf_avg) & (quad_df["Avg PA / Season"] < pa_avg)]
+bad_doomed = quad_df[(quad_df["Avg PF / Season"] < pf_avg) & (quad_df["Avg PA / Season"] >= pa_avg)]
 
 cA, cB, cC, cD = st.columns(4)
 with cA:
@@ -356,5 +380,6 @@ with cC:
 with cD:
     st.markdown("**Bad & Doomed 💀**")
     st.write(", ".join(bad_doomed["Owner(s)"].head(8).tolist()) or "—")
+
 
 st.caption("Built for trash talk. Data does not lie.")
